@@ -1,4 +1,21 @@
-# Assignment Four
+# CSC3916 Assignment 4 - Movie Review API
+
+## Deployment
+- **API Endpoint**: `https://<your-app>.onrender.com` ← _replace with deployed URL_
+- **Postman Collection**: [![Run in Postman](https://run.pstmn.io/button.svg)](https://www.postman.com) ← _replace with your embed link_
+
+## Environment Settings
+| Variable | Description |
+|----------|-------------|
+| `DB` | MongoDB Atlas connection string |
+| `SECRET_KEY` | JWT signing secret |
+| `UNIQUE_KEY` | Unique key for movie requirement JSON |
+| `GA_TRACKING_ID` | Google Analytics 4 Measurement ID (`G-XXXXXXXXXX`) |
+| `GA_API_SECRET` | Google Analytics 4 API Secret |
+| `PORT` | Server port (default: 8080) |
+
+---
+
 ## Purpose
 The purpose of this assignment is to leverage Google’s analytics policies to gather information about the requests being sent in by users.
 
