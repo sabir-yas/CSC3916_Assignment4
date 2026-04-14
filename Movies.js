@@ -16,7 +16,8 @@ var MovieSchema = new Schema({
             actorName: String,
             characterName: String
         }
-    ]
+    ],
+    imageUrl: { type: String }
 });
 
 // return the model

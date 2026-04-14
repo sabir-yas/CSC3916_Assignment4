@@ -170,6 +170,7 @@ router.route('/movies')
         movie.releaseDate = req.body.releaseDate;
         movie.genre = req.body.genre;
         movie.actors = req.body.actors;
+        if (req.body.imageUrl) movie.imageUrl = req.body.imageUrl;
 
         movie.save(function(err) {
             if (err) {
@@ -186,6 +187,27 @@ router.route('/movies')
     })
     .delete(authJwtController.isAuthenticated, function(req, res) {
         res.status(405).json({ success: false, message: 'Method not supported, use /movies/:id instead.' });
+    });
+
+router.route('/movies/search')
+    .post(authJwtController.isAuthenticated, function(req, res) {
+        var query = {};
+        if (req.body.title || req.body.actorName) {
+            query['$or'] = [];
+            if (req.body.title)
+                query['$or'].push({ title: { $regex: req.body.title, $options: 'i' } });
+            if (req.body.actorName)
+                query['$or'].push({ 'actors.actorName': { $regex: req.body.actorName, $options: 'i' } });
+        }
+        Movie.aggregate([
+            { $match: query },
+            { $lookup: { from: 'reviews', localField: '_id', foreignField: 'movieId', as: 'reviews' } },
+            { $addFields: { avgRating: { $avg: '$reviews.rating' } } },
+            { $sort: { avgRating: -1 } }
+        ]).exec(function(err, movies) {
+            if (err) return res.status(500).json(err);
+            res.json(movies);
+        });
     });
 
 router.route('/movies/:id')
