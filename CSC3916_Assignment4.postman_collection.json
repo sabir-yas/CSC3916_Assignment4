@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "CSC3916 Assignment 4",
+    "name": "CSC3916 Assignment 4 & 5",
     "_postman_id": "csc3916-assignment4",
-    "description": "Movie Review API - Assignment 4 test collection",
+    "description": "Movie Review API - Full test collection including search and imageUrl",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -32,7 +32,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"testuser\",\n  \"username\": \"testuser@test.com\",\n  \"password\": \"password123\"\n}"
+          "raw": "{\n  \"name\": \"Test User\",\n  \"username\": \"testuser@test.com\",\n  \"password\": \"password123\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/signup",
@@ -45,8 +45,10 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('Signup successful or user already exists', function () {",
+              "pm.test('Status code is 200', function () {",
               "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Signup successful or user already exists', function () {",
               "    var json = pm.response.json();",
               "    pm.expect(json).to.have.property('success');",
               "});"
@@ -81,13 +83,16 @@
               "pm.test('Status code is 200', function () {",
               "    pm.response.to.have.status(200);",
               "});",
-              "pm.test('Token is present and saved', function () {",
+              "pm.test('Response has success: true', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(true);",
+              "});",
+              "pm.test('JWT token is present and auto-saved', function () {",
               "    var json = pm.response.json();",
               "    pm.expect(json).to.have.property('token');",
-              "    var t = json.token;",
-              "    pm.collectionVariables.set('token', t);",
-              "    pm.environment.set('token', t);",
-              "    console.log('Token saved: ' + t.substring(0, 20) + '...');",
+              "    pm.expect(json.token).to.include('JWT ');",
+              "    pm.collectionVariables.set('token', json.token);",
+              "    console.log('Token saved: ' + json.token.substring(0, 30) + '...');",
               "});"
             ],
             "type": "text/javascript"
@@ -96,7 +101,42 @@
       ]
     },
     {
-      "name": "3. GET All Movies (no reviews param)",
+      "name": "3. Sign In - Invalid Credentials",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"testuser@test.com\",\n  \"password\": \"wrongpassword\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/signin",
+          "host": ["{{base_url}}"],
+          "path": ["signin"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 401 for wrong password', function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test('Returns authentication failed message', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. GET All Movies (no reviews param)",
       "request": {
         "method": "GET",
         "header": [
@@ -116,19 +156,21 @@
               "pm.test('Status code is 200', function () {",
               "    pm.response.to.have.status(200);",
               "});",
-              "pm.test('Response is an array of movies with required fields', function () {",
+              "pm.test('Response is an array with at least 5 movies', function () {",
               "    var json = pm.response.json();",
               "    pm.expect(json).to.be.an('array');",
-              "    pm.expect(json.length).to.be.above(0);",
+              "    pm.expect(json.length).to.be.at.least(5);",
+              "});",
+              "pm.test('Each movie has required fields including imageUrl', function () {",
+              "    var json = pm.response.json();",
               "    json.forEach(function(movie) {",
               "        pm.expect(movie).to.have.property('title');",
               "        pm.expect(movie).to.have.property('releaseDate');",
               "        pm.expect(movie).to.have.property('genre');",
               "        pm.expect(movie).to.have.property('actors');",
+              "        pm.expect(movie).to.have.property('imageUrl');",
               "    });",
-              "    // Save movieId for subsequent requests",
               "    pm.collectionVariables.set('movieId', json[0]._id);",
-              "    pm.environment.set('movieId', json[0]._id);",
               "});"
             ],
             "type": "text/javascript"
@@ -137,74 +179,7 @@
       ]
     },
     {
-      "name": "4. GET Movie by ID - Invalid (not in DB)",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "{{token}}" }
-        ],
-        "url": {
-          "raw": "{{base_url}}/movies/000000000000000000000000",
-          "host": ["{{base_url}}"],
-          "path": ["movies", "000000000000000000000000"]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Status code is 404 for invalid movie', function () {",
-              "    pm.response.to.have.status(404);",
-              "});",
-              "pm.test('Returns not found message', function () {",
-              "    var json = pm.response.json();",
-              "    pm.expect(json.message).to.include('not found');",
-              "});"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "5. GET Movie by ID with reviews=true (valid)",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "{{token}}" }
-        ],
-        "url": {
-          "raw": "{{base_url}}/movies/{{movieId}}?reviews=true",
-          "host": ["{{base_url}}"],
-          "path": ["movies", "{{movieId}}"],
-          "query": [
-            { "key": "reviews", "value": "true" }
-          ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Status code is 200', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "pm.test('Response includes movie and reviews array', function () {",
-              "    var json = pm.response.json();",
-              "    pm.expect(json).to.have.property('title');",
-              "    pm.expect(json).to.have.property('reviews');",
-              "    pm.expect(json.reviews).to.be.an('array');",
-              "});"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "6. GET All Movies with reviews=true",
+      "name": "5. GET All Movies with reviews=true (sorted by rating)",
       "request": {
         "method": "GET",
         "header": [
@@ -227,12 +202,68 @@
               "pm.test('Status code is 200', function () {",
               "    pm.response.to.have.status(200);",
               "});",
-              "pm.test('Each movie has reviews array', function () {",
+              "pm.test('Each movie has reviews array and avgRating', function () {",
               "    var json = pm.response.json();",
               "    pm.expect(json).to.be.an('array');",
               "    json.forEach(function(movie) {",
               "        pm.expect(movie).to.have.property('reviews');",
               "        pm.expect(movie.reviews).to.be.an('array');",
+              "        pm.expect(movie).to.have.property('avgRating');",
+              "    });",
+              "});",
+              "pm.test('Movies are sorted by avgRating descending', function () {",
+              "    var json = pm.response.json();",
+              "    for (var i = 0; i < json.length - 1; i++) {",
+              "        var curr = json[i].avgRating || 0;",
+              "        var next = json[i+1].avgRating || 0;",
+              "        pm.expect(curr).to.be.at.least(next);",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. GET Movie by ID with reviews=true",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "{{token}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/movies/{{movieId}}?reviews=true",
+          "host": ["{{base_url}}"],
+          "path": ["movies", "{{movieId}}"],
+          "query": [
+            { "key": "reviews", "value": "true" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Movie has all required fields', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('title');",
+              "    pm.expect(json).to.have.property('imageUrl');",
+              "    pm.expect(json).to.have.property('actors');",
+              "    pm.expect(json).to.have.property('avgRating');",
+              "    pm.expect(json).to.have.property('reviews');",
+              "    pm.expect(json.reviews).to.be.an('array');",
+              "});",
+              "pm.test('Reviews contain username, rating, and review text', function () {",
+              "    var json = pm.response.json();",
+              "    json.reviews.forEach(function(r) {",
+              "        pm.expect(r).to.have.property('username');",
+              "        pm.expect(r).to.have.property('rating');",
+              "        pm.expect(r).to.have.property('review');",
               "    });",
               "});"
             ],
@@ -242,7 +273,41 @@
       ]
     },
     {
-      "name": "7. POST Review - Valid",
+      "name": "7. GET Movie by ID - Invalid (not in DB)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "{{token}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/movies/000000000000000000000000?reviews=true",
+          "host": ["{{base_url}}"],
+          "path": ["movies", "000000000000000000000000"],
+          "query": [
+            { "key": "reviews", "value": "true" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 404 for invalid movie', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test('Returns not found message', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.message).to.include('not found');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. POST Review - Valid",
       "request": {
         "method": "POST",
         "header": [
@@ -251,7 +316,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"movieId\": \"{{movieId}}\",\n  \"review\": \"An absolutely brilliant film with stunning visuals and a gripping storyline.\",\n  \"rating\": 5\n}"
+          "raw": "{\n  \"movieId\": \"{{movieId}}\",\n  \"review\": \"An absolutely brilliant film with stunning visuals.\",\n  \"rating\": 5\n}"
         },
         "url": {
           "raw": "{{base_url}}/reviews",
@@ -278,7 +343,7 @@
       ]
     },
     {
-      "name": "8. POST Review - Invalid (movie not in DB)",
+      "name": "9. POST Review - Invalid (movie not in DB)",
       "request": {
         "method": "POST",
         "header": [
@@ -287,7 +352,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"movieId\": \"000000000000000000000000\",\n  \"review\": \"This movie does not exist in the database.\",\n  \"rating\": 3\n}"
+          "raw": "{\n  \"movieId\": \"000000000000000000000000\",\n  \"review\": \"This movie does not exist.\",\n  \"rating\": 3\n}"
         },
         "url": {
           "raw": "{{base_url}}/reviews",
@@ -314,7 +379,7 @@
       ]
     },
     {
-      "name": "9. POST Review - Second Review (validates new reviews returned)",
+      "name": "10. POST Review - Missing required fields",
       "request": {
         "method": "POST",
         "header": [
@@ -323,7 +388,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"movieId\": \"{{movieId}}\",\n  \"review\": \"A second watch and it only gets better. Truly a masterpiece of cinema.\",\n  \"rating\": 4\n}"
+          "raw": "{\n  \"movieId\": \"{{movieId}}\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/reviews",
@@ -336,12 +401,12 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('Status code is 200', function () {",
-              "    pm.response.to.have.status(200);",
+              "pm.test('Status code is 400 for missing fields', function () {",
+              "    pm.response.to.have.status(400);",
               "});",
-              "pm.test('Second review created', function () {",
+              "pm.test('Returns error message', function () {",
               "    var json = pm.response.json();",
-              "    pm.expect(json.message).to.eql('Review created!');",
+              "    pm.expect(json.success).to.eql(false);",
               "});"
             ],
             "type": "text/javascript"
@@ -350,19 +415,21 @@
       ]
     },
     {
-      "name": "10. GET Movie with reviews=true (verify new reviews appear)",
+      "name": "11. POST Search - By Movie Title (partial)",
       "request": {
-        "method": "GET",
+        "method": "POST",
         "header": [
+          { "key": "Content-Type", "value": "application/json" },
           { "key": "Authorization", "value": "{{token}}" }
         ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"mat\"\n}"
+        },
         "url": {
-          "raw": "{{base_url}}/movies/{{movieId}}?reviews=true",
+          "raw": "{{base_url}}/movies/search",
           "host": ["{{base_url}}"],
-          "path": ["movies", "{{movieId}}"],
-          "query": [
-            { "key": "reviews", "value": "true" }
-          ]
+          "path": ["movies", "search"]
         }
       },
       "event": [
@@ -373,18 +440,126 @@
               "pm.test('Status code is 200', function () {",
               "    pm.response.to.have.status(200);",
               "});",
-              "pm.test('Movie has at least 2 reviews', function () {",
+              "pm.test('Returns array of matching movies', function () {",
               "    var json = pm.response.json();",
-              "    pm.expect(json.reviews).to.be.an('array');",
-              "    pm.expect(json.reviews.length).to.be.at.least(2);",
+              "    pm.expect(json).to.be.an('array');",
+              "    pm.expect(json.length).to.be.above(0);",
               "});",
-              "pm.test('Reviews contain expected fields', function () {",
+              "pm.test('Results contain The Matrix (partial title match)', function () {",
               "    var json = pm.response.json();",
-              "    json.reviews.forEach(function(r) {",
-              "        pm.expect(r).to.have.property('username');",
-              "        pm.expect(r).to.have.property('review');",
-              "        pm.expect(r).to.have.property('rating');",
+              "    var titles = json.map(function(m) { return m.title; });",
+              "    pm.expect(titles).to.include('The Matrix');",
+              "});",
+              "pm.test('Results have avgRating and reviews fields', function () {",
+              "    var json = pm.response.json();",
+              "    json.forEach(function(movie) {",
+              "        pm.expect(movie).to.have.property('avgRating');",
+              "        pm.expect(movie).to.have.property('reviews');",
               "    });",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. POST Search - By Actor Name (partial)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "{{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"actorName\": \"leo\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/movies/search",
+          "host": ["{{base_url}}"],
+          "path": ["movies", "search"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Returns movies with matching actor', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.be.an('array');",
+              "    pm.expect(json.length).to.be.above(0);",
+              "});",
+              "pm.test('Inception found via Leonardo DiCaprio partial match', function () {",
+              "    var json = pm.response.json();",
+              "    var titles = json.map(function(m) { return m.title; });",
+              "    pm.expect(titles).to.include('Inception');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. POST Search - No results",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "{{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"zzznomatch999\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/movies/search",
+          "host": ["{{base_url}}"],
+          "path": ["movies", "search"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Returns empty array for no matches', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.be.an('array');",
+              "    pm.expect(json.length).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "14. GET Movies - No token (should fail)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/movies",
+          "host": ["{{base_url}}"],
+          "path": ["movies"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 401 without token', function () {",
+              "    pm.response.to.have.status(401);",
               "});"
             ],
             "type": "text/javascript"
